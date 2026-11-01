@@ -1,224 +1,168 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
-      name="viewport"
-    />
-    <meta content="#101827" name="theme-color" />
-    <meta
-      content="ColorLab &mdash; colorimetria digital de solu&ccedil;&otilde;es aquosas."
-      name="description"
-    />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#101827">
+    <meta name="description" content="ColorLab — ferramenta de análise colorimétrica digital de soluções aquosas.">
     <title>ColorLab | Colorimetria digital</title>
-    <link href="css/style.css" rel="stylesheet" />
-  </head>
-  <body>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
     <header class="topbar">
-      <div>
-        <span class="eyebrow"> LABORAT&Oacute;RIO DIGITAL </span>
-        <h1>
-          Color
-          <span> Lab </span>
-        </h1>
-        <p>
-          an&aacute;lise colorim&eacute;trica de solu&ccedil;&otilde;es aquosas
-        </p>
-      </div>
+        <div>
+            <span class="eyebrow">LABORATÓRIO DIGITAL</span>
+            <h1>Color<span>Lab</span></h1>
+            <p>análise colorimétrica de soluções aquosas</p>
+        </div>
+        <span class="version">BETA 0.3</span>
     </header>
+
     <main>
-      <section class="panel workflow">
-        <div class="section-heading">
-          <div>
-            <span class="step"> 01 </span>
-            <h2>captura da amostra</h2>
-          </div>
-          <span class="tag"> c&acirc;mera priorit&aacute;ria </span>
-        </div>
-        <div class="source-actions">
-          <button class="primary" id="openCameraButton">
-            abrir c&acirc;mera
-          </button>
-          <label class="file-button" for="imageInput">
-            escolher fotografia
-          </label>
-          <input
-            type="file"
-            id="imageInput"
-            accept="image/jpeg, image/png, image/webp"
-          >
-        </div>
-        <div class="camera-panel" hidden="" id="cameraPanel">
-          <video autoplay="" id="cameraVideo" muted="" playsinline=""></video>
-          <p class="hint">
-            mantenha o celular est&aacute;vel, evite reflexos e use
-            ilumina&ccedil;&atilde;o constante.
-          </p>
-          <div class="actions">
-            <button class="primary" disabled="" id="captureButton">
-              tirar foto
-            </button>
-            <button class="secondary" id="closeCameraButton">
-              fechar c&acirc;mera
-            </button>
-          </div>
-        </div>
-        <p aria-live="polite" class="status" id="cameraStatus" role="status">
-          abra a c&acirc;mera traseira ou escolha uma fotografia.
-        </p>
-        <div class="hint-block">
-          <strong>
-            sele&ccedil;&atilde;o da regi&atilde;o de interesse (ROI)
-          </strong>
-          <p>
-            toque e arraste sobre uma &aacute;rea uniforme do l&iacute;quido.
-            evite bordas, bolhas, sombras e reflexos.
-          </p>
-        </div>
-        <div class="preview">
-          <canvas id="imageCanvas"> </canvas>
-          <div class="empty-state" id="emptyState">
-            <span> ▧ </span>
-            <strong> nenhuma imagem carregada </strong>
-            <small> sua amostra aparecer&aacute; aqui </small>
-          </div>
-        </div>
-        <div class="actions selection-actions">
-          <button class="secondary" disabled="" id="clearSelection">
-            limpar sele&ccedil;&atilde;o
-          </button>
-          <button class="primary" disabled="" id="analyzeButton">
-            analisar regi&atilde;o
-          </button>
-        </div>
-      </section>
-      <section class="panel">
-        <div class="section-heading">
-          <div>
-            <span class="step"> 02 </span>
-            <h2>resultado da leitura</h2>
-          </div>
-        </div>
-        <div class="color-readout">
-          <div id="colorPreview"></div>
-          <div>
-            <strong id="hexValue"> #------ </strong>
-            <small id="pixelCount"> pixels analisados: -- </small>
-          </div>
-        </div>
-        <div class="metrics">
-          <div>
-            <h3>m&eacute;dia RGB</h3>
-            <dl>
-              <div>
-                <dt>vermelho</dt>
-                <dd id="red">--</dd>
-              </div>
-              <div>
-                <dt>verde</dt>
-                <dd id="green">--</dd>
-              </div>
-              <div>
-                <dt>azul</dt>
-                <dd id="blue">--</dd>
-              </div>
-            </dl>
-          </div>
-          <div>
-            <h3>mediana RGB</h3>
-            <dl>
-              <div>
-                <dt>vermelho</dt>
-                <dd id="medianRed">--</dd>
-              </div>
-              <div>
-                <dt>verde</dt>
-                <dd id="medianGreen">--</dd>
-              </div>
-              <div>
-                <dt>azul</dt>
-                <dd id="medianBlue">--</dd>
-              </div>
-            </dl>
-          </div>
-        </div>
-        <p class="hint">
-          a leitura RGB descreve os pixels selecionados; sozinha, ela ainda
-          n&atilde;o determina a concentra&ccedil;&atilde;o.
-        </p>
-      </section>
-      <section class="panel">
-        <div class="section-heading">
-          <div>
-            <span class="step"> 03 </span>
-            <h2>calibra&ccedil;&atilde;o</h2>
-          </div>
-          <span class="tag" id="calibrationState"> n&atilde;o calibrado </span>
-        </div>
-        <p class="hint">
-          primeiro registre o branco (solvente sem corante). depois, analise
-          solu&ccedil;&otilde;es padr&atilde;o de concentra&ccedil;&atilde;o
-          conhecida para construir a curva.
-        </p>
-        <button class="secondary full" disabled="" id="setBlankButton">
-          usar leitura atual como branco (0)
-        </button>
-        <div class="form-row">
-          <label for="standardConcentration">
-            concentra&ccedil;&atilde;o do padr&atilde;o
-          </label>
-          <div class="input-action">
-            <input
-              id="standardConcentration"
-              inputmode="decimal"
-              min="0"
-              placeholder="ex.: 2,5"
-              step="any"
-              type="number"
-            />
-            <button class="primary" disabled="" id="addStandardButton">
-              adicionar padr&atilde;o
-            </button>
-          </div>
-        </div>
-        <div class="standards-list" id="standardsList">
-          <p class="empty-list">nenhum padr&atilde;o cadastrado.</p>
-        </div>
-        <div class="actions">
-          <button class="secondary" disabled="" id="clearStandardsButton">
-            limpar padr&otilde;es
-          </button>
-          <button class="primary" disabled="" id="calculateCurveButton">
-            gerar curva
-          </button>
-        </div>
-        <div class="curve-result" hidden="" id="curveResult"></div>
-      </section>
-      <section class="panel">
-        <div class="section-heading">
-          <div>
-            <span class="step"> 04 </span>
-            <h2>amostra desconhecida</h2>
-          </div>
-        </div>
-        <p class="hint">
-          analise a amostra desconhecida nas mesmas condi&ccedil;&otilde;es de
-          ilumina&ccedil;&atilde;o, dist&acirc;ncia e recipiente usados na
-          calibra&ccedil;&atilde;o.
-        </p>
-        <button class="primary full" disabled="" id="estimateButton">
-          estimar concentra&ccedil;&atilde;o
-        </button>
-        <div aria-live="polite" class="estimate-result" id="estimateResult">
-          aguardando calibra&ccedil;&atilde;o e leitura da amostra.
-        </div>
-      </section>
-      <footer>
-        <p>Miguel Maranhão Novais - Felipe Domenech - Igor Oliveira - Nycollas Pietro</p>
-      </footer>
+        <section class="panel workflow">
+            <div class="section-heading">
+                <div class="heading-title">
+                    <span class="step">01</span>
+                    <h2>captura da amostra</h2>
+                </div>
+                <span class="tag">câmera ou galeria</span>
+            </div>
+
+            <div class="source-actions">
+                <button class="primary" id="openCameraButton" type="button">abrir câmera</button>
+                <label class="file-button" for="imageInput">escolher fotografia</label>
+                <!-- Sem o atributo capture: o Android deve abrir o seletor de arquivos/galeria. -->
+                <input id="imageInput" type="file" accept="image/*">
+            </div>
+
+            <div class="camera-panel" id="cameraPanel" hidden>
+                <video id="cameraVideo" autoplay playsinline muted></video>
+                <p class="hint">mantenha o celular estável, evite reflexos e use iluminação constante.</p>
+                <div class="actions">
+                    <button class="primary" id="captureButton" type="button" disabled>tirar foto</button>
+                    <button class="secondary" id="closeCameraButton" type="button">fechar câmera</button>
+                </div>
+            </div>
+
+            <p class="status" id="cameraStatus" role="status" aria-live="polite">
+                abra a câmera ou escolha uma fotografia da galeria.
+            </p>
+
+            <div class="hint-block">
+                <strong>seleção da região de interesse (ROI)</strong>
+                <p>toque e arraste sobre uma área uniforme. evite bordas, bolhas, sombras e reflexos.</p>
+            </div>
+
+            <div class="preview">
+                <canvas id="imageCanvas"></canvas>
+                <div class="empty-state" id="emptyState">
+                    <span aria-hidden="true">▧</span>
+                    <strong>nenhuma imagem carregada</strong>
+                    <small>sua amostra aparecerá aqui</small>
+                </div>
+            </div>
+
+            <div class="actions selection-actions">
+                <button class="secondary" id="clearSelection" type="button" disabled>limpar seleção</button>
+                <button class="primary" id="analyzeButton" type="button" disabled>analisar região</button>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <div class="heading-title">
+                    <span class="step">02</span>
+                    <h2>resultado da leitura</h2>
+                </div>
+                <button class="text-button" id="exportCsvButton" type="button" disabled>exportar CSV</button>
+            </div>
+
+            <div class="color-readout">
+                <div id="colorPreview" aria-label="cor média analisada"></div>
+                <div>
+                    <strong id="hexValue">#------</strong>
+                    <small id="pixelCount">pixels analisados: --</small>
+                </div>
+            </div>
+
+            <div class="metrics">
+                <div>
+                    <h3>média RGB</h3>
+                    <dl>
+                        <div><dt>vermelho</dt><dd id="red">--</dd></div>
+                        <div><dt>verde</dt><dd id="green">--</dd></div>
+                        <div><dt>azul</dt><dd id="blue">--</dd></div>
+                    </dl>
+                </div>
+                <div>
+                    <h3>mediana RGB</h3>
+                    <dl>
+                        <div><dt>vermelho</dt><dd id="medianRed">--</dd></div>
+                        <div><dt>verde</dt><dd id="medianGreen">--</dd></div>
+                        <div><dt>azul</dt><dd id="medianBlue">--</dd></div>
+                    </dl>
+                </div>
+            </div>
+            <p class="hint">a leitura RGB descreve os pixels selecionados; sozinha, ela ainda não determina a concentração.</p>
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <div class="heading-title">
+                    <span class="step">03</span>
+                    <h2>calibração</h2>
+                </div>
+                <span class="tag" id="calibrationState">não calibrado</span>
+            </div>
+
+            <p class="hint">registre primeiro o branco (solvente sem corante). depois, analise soluções padrão de concentração conhecida para construir a curva.</p>
+            <button class="secondary full" id="setBlankButton" type="button" disabled>usar leitura atual como branco (0)</button>
+
+            <div class="form-row">
+                <label for="standardConcentration">concentração do padrão</label>
+                <div class="input-action">
+                    <input id="standardConcentration" type="number" min="0" step="any" inputmode="decimal" placeholder="ex.: 2,5">
+                    <button class="primary" id="addStandardButton" type="button" disabled>adicionar padrão</button>
+                </div>
+            </div>
+
+            <div class="standards-list" id="standardsList">
+                <p class="empty-list">nenhum padrão cadastrado.</p>
+            </div>
+
+            <div class="actions">
+                <button class="secondary" id="clearStandardsButton" type="button" disabled>limpar padrões</button>
+                <button class="primary" id="calculateCurveButton" type="button" disabled>gerar curva</button>
+            </div>
+
+            <div class="curve-result" id="curveResult" hidden>
+                <p id="curveEquation"></p>
+                <div class="chart-wrap">
+                    <svg id="curveChart" role="img" aria-label="Gráfico da curva de calibração" viewBox="0 0 640 360"></svg>
+                </div>
+                <p class="chart-caption" id="curveCaption"></p>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <div class="heading-title">
+                    <span class="step">04</span>
+                    <h2>amostra desconhecida</h2>
+                </div>
+            </div>
+            <p class="hint">analise a amostra desconhecida nas mesmas condições de iluminação, distância e recipiente usados na calibração.</p>
+            <button class="primary full" id="estimateButton" type="button" disabled>estimar concentração</button>
+            <div class="estimate-result" id="estimateResult" aria-live="polite">aguardando calibração e leitura da amostra.</div>
+        </section>
+
+        <footer>
+            ColorLab · projeto de informática + química
+            <span>resultados experimentais dependem de iluminação e padronização.</span>
+        </footer>
     </main>
+
     <script src="js/image-processing.js"></script>
     <script src="js/app.js"></script>
-  </body>
+</body>
 </html>

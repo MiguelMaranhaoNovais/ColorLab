@@ -1,39 +1,50 @@
-# ColorLab — beta 0.2
+# ColorLab — versão 0.3
 
-Aplicação web de colorimetria digital para estimar a concentração relativa de corante azul em soluções aquosas.
+Aplicação web para leitura RGB de regiões de interesse em imagens, registro de padrões e cálculo exploratório de uma curva de calibração.
 
-## Executar
+## Estrutura
 
-Sirva esta pasta por HTTPS ou `localhost` para liberar a câmera. Exemplo com Python:
-
-```bash
-python -m http.server 8000
+```text
+colorlab-atualizado/
+├── index.html
+├── css/
+│   └── style.css
+└── js/
+    ├── app.js
+    └── image-processing.js
 ```
 
-Abra `http://localhost:8000`. Em um celular, `localhost` aponta para o próprio celular; para testar pelo celular na mesma rede, use um servidor HTTPS acessível na rede ou hospede a aplicação em HTTPS.
+## Como executar
 
-## Fluxo experimental
+1. Abra esta pasta no VS Code.
+2. Inicie um servidor local (por exemplo, Live Server).
+3. Abra o endereço servido pelo navegador.
+4. Para usar a câmera, utilize HTTPS ou `localhost` e conceda a permissão solicitada.
 
-1. Prepare um branco (solvente sem corante) e soluções padrão de concentração conhecida.
-2. Mantenha o mesmo recipiente, volume, fundo, iluminação, distância e orientação para branco, padrões e amostra desconhecida.
-3. Capture cada solução pela câmera traseira; selecione uma região homogênea, sem reflexos, bolhas, bordas ou sombras.
-4. Registre a leitura do branco.
-5. Para cada padrão, informe a concentração (sempre na mesma unidade) e adicione a leitura RGB.
-6. Com pelo menos dois padrões de concentrações diferentes, gere a regressão linear.
-7. Analise a amostra desconhecida e estime sua concentração.
+## Recursos da versão 0.3
 
-## Modelo implementado
+- Captura pela câmera traseira usando `getUserMedia()`.
+- Seleção de fotografias da galeria/arquivos. O input não usa o atributo `capture`, para não forçar a abertura da câmera no Android.
+- Seleção retangular da região de interesse por mouse ou toque.
+- Leitura da média, mediana, HEX e quantidade de pixels.
+- Registro do branco e de padrões com concentração informada.
+- Regressão linear e gráfico SVG da curva de calibração.
+- Estimativa de concentração, com aviso quando o resultado fica fora da faixa dos padrões.
+- Exportação CSV das leituras, do branco, dos padrões e dos parâmetros da regressão.
+- Layout adaptado a telas pequenas e controles com foco visível.
 
-O aplicativo usa o canal vermelho como aproximação inicial para a intensidade transmitida por uma solução de corante azul:
+## Exportação CSV
 
-`A_digital = log10(R_branco / R_amostra)`
+O botão **exportar CSV** fica na seção de resultado da leitura. O arquivo inclui as leituras feitas durante a sessão atual, os padrões registrados e os dados da calibração. Os dados permanecem apenas na memória da página; atualizar ou fechar a página reinicia a sessão.
 
-A curva é ajustada por regressão linear `A = m·C + b`; a concentração é estimada por `C = (A - b)/m`.
+## Observações científicas importantes
 
-## Limitações científicas
+- Os valores RGB são medidas digitais dependentes do sensor, exposição, balanço de branco, iluminação, recipiente e processamento da câmera.
+- A absorbância implementada é uma **aproximação digital exploratória**, calculada com o canal vermelho: `Ad = log10(R_branco / R_amostra)`. Ela não deve ser apresentada como absorbância espectrofotométrica validada.
+- A curva só tem significado experimental quando as concentrações dos padrões são conhecidas e as condições de aquisição são controladas.
+- O R² descreve o ajuste linear dos pontos cadastrados; sozinho, não comprova exatidão, seletividade ou validade química do método.
+- A estimativa fora da faixa de concentração dos padrões é sinalizada como extrapolação e não deve ser tratada como resultado quantitativo confiável.
 
-- Trata-se de absorbância **digital aparente**, não de absorbância espectrofotométrica validada.
-- Câmeras de celular aplicam processamento automático (exposição, balanço de branco, HDR, compressão e correção tonal). O app não bloqueia esses ajustes; portanto, a estimativa só é comparável sob condições de captura rigorosamente constantes.
-- A regressão deve ser avaliada com padrões independentes e replicatas. R² alto, isoladamente, não comprova exatidão.
-- A estimativa fora da faixa dos padrões é extrapolação e deve ser evitada.
-- Para resultados quantitativos defensáveis, compare com um método de referência e valide linearidade, repetibilidade e incerteza.
+## Publicação
+
+Para publicar, envie o conteúdo desta pasta ao repositório conectado à Vercel ou substitua os arquivos correspondentes no projeto já conectado. Confirme que `index.html`, `css/style.css`, `js/app.js` e `js/image-processing.js` mantenham esses caminhos relativos.
