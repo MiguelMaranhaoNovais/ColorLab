@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#101827">
+    <title>ColorLab</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <h1>ColorLab</h1>
+        <p>análise colorimétrica digital</p>
+    </header>
+
+    <main>
+        <section class="analysis">
+            <h2>analisar amostra</h2>
+
+            <div class="source-actions">
+                <button id="openCameraButton" type="button">abrir câmera</button>
+                <label class="file-button" for="imageInput">enviar fotografia</label>
+                <input type="file" id="imageInput" accept="image/*">
+            </div>
+
+            <div id="cameraPanel" class="camera-panel" hidden>
+                <video id="cameraVideo" autoplay playsinline muted></video>
+                <p class="instruction">posicione a amostra e mantenha o celular estável.</p>
+                <div class="camera-actions">
+                    <button id="captureButton" type="button" disabled>tirar foto</button>
+                    <button id="closeCameraButton" class="secondary" type="button">fechar câmera</button>
+                </div>
+            </div>
+
+            <p id="cameraStatus" class="status" role="status">
+                use a câmera do celular ou envie uma fotografia.
+            </p>
+
+            <p class="instruction">
+                depois de carregar a imagem, arraste sobre ela ou toque na tela
+                para selecionar somente a região do líquido.
+            </p>
+
+            <div class="preview">
+                <canvas id="imageCanvas"></canvas>
+                <div id="emptyState" class="empty-state">
+                    <span>nenhuma imagem carregada</span>
+                </div>
+            </div>
+
+            <div class="selection-actions">
+                <button id="clearSelection" class="secondary" type="button" disabled>limpar seleção</button>
+                <button id="analyzeButton" type="button" disabled>analisar região</button>
+            </div>
+        </section>
+
+        <section class="results">
+            <h2>resultados RGB</h2>
+            <h3>média</h3>
+            <div class="rgb-result">
+                <p>vermelho: <span id="red">--</span></p>
+                <p>verde: <span id="green">--</span></p>
+                <p>azul: <span id="blue">--</span></p>
+            </div>
+
+            <h3>mediana</h3>
+            <div class="rgb-result">
+                <p>vermelho: <span id="medianRed">--</span></p>
+                <p>verde: <span id="medianGreen">--</span></p>
+                <p>azul: <span id="medianBlue">--</span></p>
+            </div>
+
+            <div id="colorPreview"></div>
+            <p id="pixelCount">pixels analisados: --</p>
+        </section>
+    </main>
+
+    <script src="js/image-processing.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
