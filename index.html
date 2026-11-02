@@ -40,6 +40,7 @@
                 <p class="hint">mantenha o celular estável, evite reflexos e use iluminação constante.</p>
                 <div class="actions">
                     <button class="primary" id="captureButton" type="button" disabled>tirar foto</button>
+                    <button class="secondary" id="switchCameraButton" type="button" disabled>trocar câmera</button>
                     <button class="secondary" id="closeCameraButton" type="button">fechar câmera</button>
                 </div>
             </div>
@@ -77,6 +78,11 @@
                 <button class="text-button" id="exportCsvButton" type="button" disabled>exportar CSV</button>
             </div>
 
+            <p class="hint persistence-hint" id="persistenceHint" hidden>
+                sessão anterior restaurada (branco e padrões salvos neste dispositivo).
+                <button class="text-button" id="clearStorageButton" type="button">limpar dados salvos</button>
+            </p>
+
             <div class="color-readout">
                 <div id="colorPreview" aria-label="cor média analisada"></div>
                 <div>
@@ -102,8 +108,25 @@
                         <div><dt>azul</dt><dd id="medianBlue">--</dd></div>
                     </dl>
                 </div>
+                <div>
+                    <h3>HSV (da cor média)</h3>
+                    <dl>
+                        <div><dt>matiz (H)</dt><dd id="hsvH">--</dd></div>
+                        <div><dt>saturação (S)</dt><dd id="hsvS">--</dd></div>
+                        <div><dt>valor (V)</dt><dd id="hsvV">--</dd></div>
+                    </dl>
+                </div>
+                <div>
+                    <h3>CIELAB (da cor média)</h3>
+                    <dl>
+                        <div><dt>L*</dt><dd id="labL">--</dd></div>
+                        <div><dt>a*</dt><dd id="labA">--</dd></div>
+                        <div><dt>b*</dt><dd id="labB">--</dd></div>
+                    </dl>
+                </div>
             </div>
-            <p class="hint">a leitura RGB descreve os pixels selecionados; sozinha, ela ainda não determina a concentração.</p>
+            <p class="hint">a leitura RGB descreve os pixels selecionados; sozinha, ela ainda não determina a concentração. HSV e CIELAB são derivados da cor média e ajudam a comparar amostras visualmente.</p>
+            <ul class="warnings-list" id="warningsList" hidden></ul>
         </section>
 
         <section class="panel">
@@ -134,6 +157,7 @@
                 <button class="secondary" id="clearStandardsButton" type="button" disabled>limpar padrões</button>
                 <button class="primary" id="calculateCurveButton" type="button" disabled>gerar curva</button>
             </div>
+            <p class="hint">cadastrar um padrão com a mesma concentração de um já existente faz a média das leituras (medição repetida) e mostra a repetibilidade (CV%).</p>
 
             <div class="curve-result" id="curveResult" hidden>
                 <p id="curveEquation"></p>
@@ -163,6 +187,8 @@
     </main>
 
     <script src="js/image-processing.js"></script>
+    <script src="js/calculations.js"></script>
+    <script src="js/camera.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

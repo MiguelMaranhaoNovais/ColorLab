@@ -13,6 +13,7 @@ const elements = {
     openCameraButton: $('openCameraButton'),
     closeCameraButton: $('closeCameraButton'),
     captureButton: $('captureButton'),
+    switchCameraButton: $('switchCameraButton'),
     cameraPanel: $('cameraPanel'),
     cameraVideo: $('cameraVideo'),
     cameraStatus: $('cameraStatus'),
@@ -25,6 +26,9 @@ const elements = {
     clearStandardsButton: $('clearStandardsButton'),
     calculateCurveButton: $('calculateCurveButton'),
     estimateButton: $('estimateButton'),
+    warningsList: $('warningsList'),
+    persistenceHint: $('persistenceHint'),
+    clearStorageButton: $('clearStorageButton'),
 };
 
 const output = {
@@ -36,13 +40,18 @@ const output = {
     medianBlue: $('medianBlue'),
     colorPreview: $('colorPreview'),
     pixelCount: $('pixelCount'),
+    hsvH: $('hsvH'),
+    hsvS: $('hsvS'),
+    hsvV: $('hsvV'),
+    labL: $('labL'),
+    labA: $('labA'),
+    labB: $('labB'),
 };
 
 let loadedImage = false;
 let selection = null;
 let selecting = false;
 let startPoint = null;
-let cameraStream = null;
 let currentReading = null;
 let currentSource = 'imagem';
 let blankReading = null;
@@ -65,6 +74,12 @@ function resetReading() {
         'medianRed',
         'medianGreen',
         'medianBlue',
+        'hsvH',
+        'hsvS',
+        'hsvV',
+        'labL',
+        'labA',
+        'labB',
     ].forEach((id) => {
         $(id).textContent = '--';
     });
@@ -72,7 +87,24 @@ function resetReading() {
     output.colorPreview.style.backgroundColor = '#334155';
     output.pixelCount.textContent = 'pixels analisados: --';
     $('hexValue').textContent = '#------';
+    renderWarnings([]);
     updateCalibrationButtons();
+}
+
+function renderWarnings(warnings) {
+    elements.warningsList.replaceChildren();
+
+    if (!warnings || warnings.length === 0) {
+        elements.warningsList.hidden = true;
+        return;
+    }
+
+    warnings.forEach((warning) => {
+        const item = document.createElement('li');
+        item.textContent = `⚠ ${warning}`;
+        elements.warningsList.append(item);
+    });
+    elements.warningsList.hidden = false;
 }
 
 function updateButtons() {
@@ -163,7 +195,7 @@ function setImage(source, sourceLabel) {
     updateButtons();
 }
 
-function loadImageFile(file) {
+async function loadImageFile(file) {
     if (!file) {
         return;
     }
@@ -173,13 +205,34 @@ function loadImageFile(file) {
         return;
     }
 
+    setStatus('carregando fotografia...');
+
+    // Fotos de câmeras de celular costumam trazer a orientação em metadados
+    // EXIF em vez de girar os pixels de fato. `drawImage` em um <canvas>
+    // ignora esses metadados, o que fazia fotos em retrato aparecerem
+    // deitadas/invertidas. `createImageBitmap` com `imageOrientation:
+    // 'from-image'` aplica a rotação correta antes de chegarmos ao canvas.
+    if (typeof createImageBitmap === 'function') {
+        try {
+            const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+            setImage(bitmap, 'galeria');
+            bitmap.close?.();
+            setStatus('fotografia carregada. selecione a região que deseja analisar.');
+            stopCamera();
+            return;
+        } catch (error) {
+            console.warn('createImageBitmap falhou, usando fallback com <img>:', error);
+            // Segue para o fallback abaixo em vez de falhar silenciosamente.
+        }
+    }
+
     const imageUrl = URL.createObjectURL(file);
     const image = new Image();
 
     image.onload = () => {
         try {
             setImage(image, 'galeria');
-            setStatus('fotografia carregada. selecione a região que deseja analisar.');
+            setStatus('fotografia carregada. selecione a região que deseja analisar. observação: em navegadores sem suporte a createImageBitmap, fotos em retrato podem aparecer com a orientação original do arquivo.');
             stopCamera();
         } catch (error) {
             setStatus(error.message, true);
@@ -220,38 +273,20 @@ function pointFromEvent(event) {
 }
 
 async function openCamera() {
-    if (!navigator.mediaDevices?.getUserMedia) {
+    if (!ColorLabCamera.isSupported()) {
         setStatus('câmera indisponível. abra o aplicativo por HTTPS ou localhost.', true);
         return;
     }
 
     try {
-        stopCamera();
         setStatus('solicitando permissão para acessar a câmera...');
 
-        cameraStream = await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: {
-                facingMode: { ideal: 'environment' },
-                width: { ideal: 1920 },
-                height: { ideal: 1080 },
-            },
-        });
+        await ColorLabCamera.start(elements.cameraVideo, 'environment');
 
-        elements.cameraVideo.srcObject = cameraStream;
         elements.cameraPanel.hidden = false;
         elements.openCameraButton.disabled = true;
-
-        await elements.cameraVideo.play();
-
-        if (!elements.cameraVideo.videoWidth) {
-            await new Promise((resolve, reject) => {
-                elements.cameraVideo.addEventListener('loadedmetadata', resolve, { once: true });
-                window.setTimeout(() => reject(new Error('tempo esgotado ao iniciar a câmera.')), 8000);
-            });
-        }
-
         elements.captureButton.disabled = false;
+        elements.switchCameraButton.disabled = false;
         setStatus('câmera ativa. enquadre a amostra e tire a foto.');
     } catch (error) {
         console.error('erro ao abrir câmera:', error);
@@ -266,15 +301,22 @@ async function openCamera() {
 }
 
 function stopCamera() {
-    if (cameraStream) {
-        cameraStream.getTracks().forEach((track) => track.stop());
-        cameraStream = null;
-    }
-
-    elements.cameraVideo.srcObject = null;
+    ColorLabCamera.stop();
     elements.cameraPanel.hidden = true;
     elements.captureButton.disabled = true;
+    elements.switchCameraButton.disabled = true;
     elements.openCameraButton.disabled = false;
+}
+
+async function switchCamera() {
+    try {
+        setStatus('trocando câmera...');
+        const facing = await ColorLabCamera.switchFacing(elements.cameraVideo);
+        setStatus(`câmera ${facing === 'environment' ? 'traseira' : 'frontal'} ativa. enquadre a amostra e tire a foto.`);
+    } catch (error) {
+        console.error('erro ao trocar câmera:', error);
+        setStatus('não foi possível trocar de câmera neste dispositivo.', true);
+    }
 }
 
 function capturePhoto() {
@@ -297,6 +339,7 @@ elements.closeCameraButton.addEventListener('click', () => {
     setStatus('câmera fechada.');
 });
 elements.captureButton.addEventListener('click', capturePhoto);
+elements.switchCameraButton.addEventListener('click', switchCamera);
 
 canvas.addEventListener('pointerdown', (event) => {
     if (!loadedImage) {
@@ -401,10 +444,19 @@ function displayReading(result) {
     output.medianGreen.textContent = result.median.g.toFixed(2);
     output.medianBlue.textContent = result.median.b.toFixed(2);
 
+    output.hsvH.textContent = `${result.hsv.h.toFixed(1)}°`;
+    output.hsvS.textContent = `${(result.hsv.s * 100).toFixed(1)}%`;
+    output.hsvV.textContent = `${(result.hsv.v * 100).toFixed(1)}%`;
+    output.labL.textContent = result.lab.l.toFixed(2);
+    output.labA.textContent = result.lab.a.toFixed(2);
+    output.labB.textContent = result.lab.b.toFixed(2);
+
     const rgb = [result.mean.r, result.mean.g, result.mean.b];
     output.colorPreview.style.backgroundColor = `rgb(${rgb.map(Math.round).join(', ')})`;
     $('hexValue').textContent = `#${formatHex(rgb)}`;
     output.pixelCount.textContent = `pixels analisados: ${result.totalPixels.toLocaleString('pt-BR')}`;
+
+    renderWarnings(result.warnings);
 
     readingHistory.push({
         timestamp: new Date(),
@@ -441,61 +493,52 @@ function renderStandards() {
         return;
     }
 
+    const duplicates = findDuplicateConcentrations(standards);
+    const duplicateIndexes = new Set(duplicates.flat());
+
     standards.forEach((standard, index) => {
         const row = document.createElement('div');
         row.className = 'standard-item';
 
         const label = document.createElement('span');
-        label.textContent = `Padrão ${index + 1} · concentração ${standard.concentration}`;
+        const repeatInfo = standard.repeatCount > 1
+            ? ` · ${standard.repeatCount} medições, CV ${standard.coefficientOfVariation === null ? 'n/d' : `${standard.coefficientOfVariation.toFixed(2)}%`}`
+            : '';
+        const duplicateFlag = duplicateIndexes.has(index) ? ' ⚠ concentração duplicada' : '';
+        label.textContent = `Padrão ${index + 1} · concentração ${standard.concentration}${repeatInfo}${duplicateFlag}`;
 
         const values = document.createElement('span');
         values.textContent = `R ${standard.reading.r.toFixed(1)} | G ${standard.reading.g.toFixed(1)} | B ${standard.reading.b.toFixed(1)}`;
 
-        row.append(label, values);
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'standard-remove';
+        removeButton.textContent = 'remover';
+        removeButton.addEventListener('click', () => removeStandard(index));
+
+        row.append(label, values, removeButton);
         list.append(row);
     });
 }
 
-function calculateDigitalAbsorbance(reading) {
-    if (!blankReading) {
-        throw new Error('registre primeiro o branco.');
-    }
-
-    const referenceIntensity = blankReading.r;
-    const sampleIntensity = reading.r;
-
-    if (referenceIntensity <= 0 || sampleIntensity <= 0) {
-        throw new Error('intensidade do canal vermelho inválida para calcular a absorbância digital.');
-    }
-
-    // Aproximação digital experimental; não equivale automaticamente à absorbância espectrofotométrica.
-    return Math.log10(referenceIntensity / sampleIntensity);
+function removeStandard(index) {
+    standards.splice(index, 1);
+    calibration = null;
+    $('curveResult').hidden = true;
+    $('calibrationState').textContent = standards.length === 0 && !blankReading ? 'não calibrado' : 'padrões atualizados';
+    $('estimateResult').textContent = 'padrão removido. gere novamente a curva de calibração, se necessário.';
+    renderStandards();
+    updateCalibrationButtons();
+    persistState();
+    setStatus('padrão removido.');
 }
 
-function calculateLinearRegression(points) {
-    const meanX = points.reduce((sum, point) => sum + point.x, 0) / points.length;
-    const meanY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
-    const denominator = points.reduce((sum, point) => sum + (point.x - meanX) ** 2, 0);
-
-    if (denominator === 0) {
-        throw new Error('os padrões precisam ter concentrações diferentes.');
-    }
-
-    const slope = points.reduce(
-        (sum, point) => sum + (point.x - meanX) * (point.y - meanY),
-        0,
-    ) / denominator;
-    const intercept = meanY - slope * meanX;
-    const totalSumSquares = points.reduce((sum, point) => sum + (point.y - meanY) ** 2, 0);
-    const residualSumSquares = points.reduce(
-        (sum, point) => sum + (point.y - (slope * point.x + intercept)) ** 2,
-        0,
-    );
-    const rSquared = totalSumSquares === 0
-        ? 1
-        : 1 - residualSumSquares / totalSumSquares;
-
-    return { slope, intercept, rSquared };
+// calculateDigitalAbsorbance e calculateLinearRegression agora vivem em
+// js/calculations.js (funções puras, compartilhadas com os testes
+// automatizados). Aqui mantemos apenas um wrapper fino que já injeta o
+// branco atual, para não precisar repeti-lo em cada chamada.
+function digitalAbsorbanceForReading(reading) {
+    return calculateDigitalAbsorbance(blankReading, reading);
 }
 
 function svgElement(name, attributes = {}, textContent = null) {
@@ -633,7 +676,7 @@ function drawCalibrationChart(points, model) {
 function renderCalibration() {
     const points = standards.map((standard) => ({
         x: standard.concentration,
-        y: calculateDigitalAbsorbance(standard.reading),
+        y: digitalAbsorbanceForReading(standard.reading),
     }));
 
     calibration = calculateLinearRegression(points);
@@ -660,6 +703,7 @@ elements.setBlankButton.addEventListener('click', () => {
     $('curveResult').hidden = true;
     $('estimateResult').textContent = 'branco registrado. adicione pelo menos dois padrões conhecidos e gere a curva.';
     updateCalibrationButtons();
+    persistState();
     setStatus('leitura atual registrada como branco.');
 });
 
@@ -677,11 +721,31 @@ elements.addStandardButton.addEventListener('click', () => {
         return;
     }
 
-    standards.push({
-        concentration,
-        reading: { ...currentReading.mean },
-    });
-    standards.sort((a, b) => a.concentration - b.concentration);
+    // Concentração igual a um padrão já cadastrado: trata como medição
+    // repetida do mesmo padrão (faz a média e registra a repetibilidade)
+    // em vez de criar um ponto independente e artificialmente duplicado na
+    // curva de calibração.
+    const existingIndex = standards.findIndex(
+        (standard) => Math.abs(standard.concentration - concentration) <= 1e-9,
+    );
+
+    if (existingIndex >= 0) {
+        standards[existingIndex] = aggregateRepeatedReading(
+            standards[existingIndex],
+            { ...currentReading.mean },
+        );
+        setStatus(`medição repetida registrada para a concentração ${concentration} (${standards[existingIndex].repeatCount} medições no total).`);
+    } else {
+        standards.push({
+            concentration,
+            reading: { ...currentReading.mean },
+            readings: [{ ...currentReading.mean }],
+            repeatCount: 1,
+            coefficientOfVariation: null,
+        });
+        standards.sort((a, b) => a.concentration - b.concentration);
+        setStatus('padrão adicionado.');
+    }
 
     calibration = null;
     $('curveResult').hidden = true;
@@ -689,9 +753,9 @@ elements.addStandardButton.addEventListener('click', () => {
     $('estimateResult').textContent = 'padrões atualizados. gere novamente a curva de calibração.';
     renderStandards();
     updateCalibrationButtons();
+    persistState();
 
     input.value = '';
-    setStatus('padrão adicionado.');
 });
 
 elements.calculateCurveButton.addEventListener('click', () => {
@@ -721,6 +785,7 @@ elements.clearStandardsButton.addEventListener('click', () => {
     $('calibrationState').textContent = blankReading ? 'branco registrado' : 'não calibrado';
     $('estimateResult').textContent = 'padrões removidos.';
     updateCalibrationButtons();
+    persistState();
 });
 
 elements.estimateButton.addEventListener('click', () => {
@@ -729,7 +794,7 @@ elements.estimateButton.addEventListener('click', () => {
             throw new Error('gere a curva e analise a amostra.');
         }
 
-        const absorbance = calculateDigitalAbsorbance(currentReading.mean);
+        const absorbance = digitalAbsorbanceForReading(currentReading.mean);
         const concentration = (absorbance - calibration.intercept) / calibration.slope;
         const minimum = Math.min(...standards.map((standard) => standard.concentration));
         const maximum = Math.max(...standards.map((standard) => standard.concentration));
@@ -749,9 +814,9 @@ elements.estimateButton.addEventListener('click', () => {
         value.textContent = concentration.toFixed(4);
 
         const note = document.createElement('span');
-        note.textContent = concentration < minimum || concentration > maximum
-            ? 'atenção: resultado extrapolado fora da faixa de calibração. não interprete como quantitativo confiável.'
-            : `dentro da faixa dos padrões · absorbância digital ${absorbance.toFixed(4)} · R² ${calibration.rSquared.toFixed(4)}`;
+        note.textContent = isWithinCalibrationRange(concentration, minimum, maximum)
+            ? `dentro da faixa dos padrões · absorbância digital ${absorbance.toFixed(4)} · R² ${calibration.rSquared.toFixed(4)}`
+            : 'atenção: resultado extrapolado fora da faixa de calibração. não interprete como quantitativo confiável.';
 
         result.append(label, value, note);
     } catch (error) {
@@ -766,14 +831,14 @@ function csvCell(value) {
 
 function exportCsv() {
     const rows = [
-        ['tipo', 'data_hora', 'origem', 'concentracao', 'media_r', 'media_g', 'media_b', 'mediana_r', 'mediana_g', 'mediana_b', 'pixels', 'absorbancia_digital'],
+        ['tipo', 'data_hora', 'origem', 'concentracao', 'media_r', 'media_g', 'media_b', 'mediana_r', 'mediana_g', 'mediana_b', 'pixels', 'absorbancia_digital', 'num_medicoes', 'cv_percent_r'],
     ];
 
     if (blankReading) {
         rows.push([
             'branco', '', '', 0,
             blankReading.r, blankReading.g, blankReading.b,
-            '', '', '', '', 0,
+            '', '', '', '', 0, '', '',
         ]);
     }
 
@@ -791,7 +856,8 @@ function exportCsv() {
             median.g,
             median.b,
             totalPixels,
-            blankReading ? calculateDigitalAbsorbance(mean) : '',
+            blankReading ? digitalAbsorbanceForReading(mean) : '',
+            '', '',
         ]);
     });
 
@@ -802,12 +868,14 @@ function exportCsv() {
             standard.reading.g,
             standard.reading.b,
             '', '', '', '',
-            blankReading ? calculateDigitalAbsorbance(standard.reading) : '',
+            blankReading ? digitalAbsorbanceForReading(standard.reading) : '',
+            standard.repeatCount ?? 1,
+            standard.coefficientOfVariation == null ? '' : standard.coefficientOfVariation.toFixed(3),
         ]);
     });
 
     if (calibration) {
-        rows.push(['regressao_linear', '', '', '', '', '', '', '', '', '', '', `inclinação=${calibration.slope}; intercepto=${calibration.intercept}; R2=${calibration.rSquared}`]);
+        rows.push(['regressao_linear', '', '', '', '', '', '', '', '', '', '', `inclinação=${calibration.slope}; intercepto=${calibration.intercept}; R2=${calibration.rSquared}`, '', '']);
     }
 
     const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(';')).join('\r\n')}`;
@@ -824,8 +892,76 @@ function exportCsv() {
 
 elements.exportCsvButton.addEventListener('click', exportCsv);
 
+// --- Persistência local -----------------------------------------------
+//
+// Apenas o branco e os padrões (números pequenos) são salvos no
+// localStorage do navegador — nunca as imagens capturadas, que
+// permanecem somente em memória e nunca são enviadas a servidores
+// externos. Isso permite retomar uma calibração em andamento após
+// recarregar a página, sem reintroduzir dependência de rede.
+const STORAGE_KEY = 'colorlab:v1';
+
+function persistState() {
+    try {
+        const payload = {
+            blankReading,
+            standards,
+        };
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (error) {
+        console.warn('não foi possível salvar os dados localmente:', error);
+    }
+}
+
+function clearPersistedState() {
+    try {
+        window.localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+        console.warn('não foi possível limpar os dados salvos:', error);
+    }
+    elements.persistenceHint.hidden = true;
+}
+
+function restoreState() {
+    let saved = null;
+
+    try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        saved = raw ? JSON.parse(raw) : null;
+    } catch (error) {
+        console.warn('não foi possível ler os dados salvos:', error);
+        return;
+    }
+
+    if (!saved || (!saved.blankReading && (!saved.standards || saved.standards.length === 0))) {
+        return;
+    }
+
+    blankReading = saved.blankReading ?? null;
+    standards = Array.isArray(saved.standards) ? saved.standards : [];
+
+    renderStandards();
+    $('calibrationState').textContent = blankReading ? 'branco registrado' : 'não calibrado';
+    elements.persistenceHint.hidden = false;
+    updateCalibrationButtons();
+}
+
+elements.clearStorageButton.addEventListener('click', () => {
+    blankReading = null;
+    standards = [];
+    calibration = null;
+    renderStandards();
+    $('curveResult').hidden = true;
+    $('calibrationState').textContent = 'não calibrado';
+    $('estimateResult').textContent = 'aguardando calibração e leitura da amostra.';
+    updateCalibrationButtons();
+    clearPersistedState();
+    setStatus('dados salvos localmente foram apagados.');
+});
+
 window.addEventListener('pagehide', stopCamera);
 
 renderStandards();
 updateButtons();
 resetReading();
+restoreState();

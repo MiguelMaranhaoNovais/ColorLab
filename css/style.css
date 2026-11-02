@@ -419,6 +419,59 @@ video {
     font-size: 12px;
 }
 
+.standard-item {
+    align-items: center;
+}
+
+.standard-item .standard-remove {
+    flex-shrink: 0;
+    min-height: 30px;
+    border-color: var(--line);
+    padding: 4px 9px;
+    background: transparent;
+    color: #ff9b9b;
+    font-size: 10px;
+}
+
+.warnings-list {
+    display: grid;
+    gap: 8px;
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.warnings-list[hidden] {
+    display: none;
+}
+
+.warnings-list li {
+    border: 1px solid #5a4423;
+    border-radius: 10px;
+    padding: 9px 12px;
+    background: #2a2108;
+    color: var(--warning);
+    font-size: 11.5px;
+    line-height: 1.5;
+}
+
+.persistence-hint {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: -4px 0 16px;
+}
+
+.persistence-hint[hidden] {
+    display: none;
+}
+
+.persistence-hint .text-button {
+    min-height: 28px;
+    padding: 5px 8px;
+}
+
 .curve-result {
     margin-top: 16px;
     border: 1px solid var(--line);
